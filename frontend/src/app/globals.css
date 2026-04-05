@@ -2,6 +2,35 @@
   box-sizing: border-box;
 }
 
+._google_btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+
+._google_btn:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+._forgot_link {
+  font-size: 13px;
+  color: #2d7ff9;
+  text-decoration: none;
+}
+
+._forgot_link:hover {
+  text-decoration: underline;
+}
+
 html,
 body {
   margin: 0;

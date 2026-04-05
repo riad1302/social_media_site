@@ -10,6 +10,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -72,7 +73,16 @@ export default function LoginPage() {
                 <p className="_social_login_content_para _mar_b8">Welcome back</p>
                 <h4 className="_social_login_content_title _titl4 _mar_b50">Login to your account</h4>
 
-                <div className="_social_login_content_bottom_txt _mar_b40">
+                {/* Google sign-in button */}
+                <div className="_mar_b20">
+                  <button type="button" className="_google_btn w-100">
+                    <img src="/assets/images/google.svg" alt="Google" style={{ width: 20, height: 20, marginRight: 10 }} />
+                    Or sign-in with google
+                  </button>
+                </div>
+
+                {/* Or divider */}
+                <div className="_social_login_content_bottom_txt _mar_b28">
                   <span>Or</span>
                 </div>
 
@@ -110,9 +120,27 @@ export default function LoginPage() {
                     </div>
                   </div>
 
+                  {/* Remember me + Forgot password */}
+                  <div className="d-flex align-items-center justify-content-between _mar_b20">
+                    <div className="d-flex align-items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="rememberMe"
+                        className="form-check-input m-0"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        style={{ width: 18, height: 18, cursor: 'pointer' }}
+                      />
+                      <label htmlFor="rememberMe" className="_social_login_label m-0" style={{ cursor: 'pointer' }}>
+                        Remember me
+                      </label>
+                    </div>
+                    <Link href="#" className="_forgot_link">Forgot password?</Link>
+                  </div>
+
                   <div className="row">
                     <div className="col-lg-12">
-                      <div className="_social_login_form_btn _mar_t40 _mar_b60">
+                      <div className="_social_login_form_btn _mar_b60">
                         <button
                           type="submit"
                           className="_social_login_form_btn_link _btn1"
