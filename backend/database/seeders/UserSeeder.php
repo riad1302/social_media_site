@@ -22,6 +22,6 @@ class UserSeeder extends Seeder
         ]);
 
         // Random users
-        User::factory(9)->create();
+        User::factory(49)->create();
     }
 }
