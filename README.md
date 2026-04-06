@@ -1,132 +1,112 @@
 # BuddyScript — Social Media Platform
 
-A full-stack social media application built as a selection task for the **Full Stack Engineer** position at **Appifylab**. The platform allows users to register, log in, and interact with a social feed — posting content, liking, commenting, and replying to others' posts.
+A full-stack social media web application built with a decoupled REST API backend and a modern React frontend, fully containerized with Docker.
 
 ---
 
 ## Table of Contents
 
-- [Project Overview](#project-overview)
+- [Overview](#overview)
 - [Tech Stack](#tech-stack)
 - [Features](#features)
-- [Architecture & Design Decisions](#architecture--design-decisions)
+- [Project Screenshots](#project-screenshots)
+- [Architecture Decisions](#architecture-decisions)
 - [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Backend Setup](#backend-setup)
-  - [Frontend Setup](#frontend-setup)
+- [How to Run the Project](#how-to-run-the-project)
 - [Environment Variables](#environment-variables)
 - [API Overview](#api-overview)
-- [Database Schema](#database-schema)
-- [Security Considerations](#security-considerations)
-- [Performance & Scalability](#performance--scalability)
 
 ---
 
-## Project Overview
+## Overview
 
-BuddyScript is a responsive social media platform converted from provided HTML/CSS designs into a fully functional React/Next.js frontend backed by a Laravel REST API. It implements:
-
-- JWT or session-based authentication
-- A real-time-styled feed of posts (most recent first)
-- Public and private post visibility
-- Like/unlike for posts, comments, and replies
-- Nested comment and reply threads
-- Image upload support for posts
-
-The design faithfully follows the provided Figma-exported HTML templates using **Bootstrap 5** and **Poppins** font.
+BuddyScript is a social media platform where users can register, log in, create posts (with optional image attachments), like posts, comment on posts, reply to comments, and browse a public feed. The project follows an API-first design, keeping the backend and frontend fully decoupled.
 
 ---
 
 ## Tech Stack
 
 ### Backend
-| Technology | Version | Purpose |
+| Tool / Library | Version | Purpose |
 |---|---|---|
 | PHP | 8.3 | Runtime |
-| Laravel | 13 | API framework |
-| MySQL | 8.x | Primary database |
-| PHPUnit | 12 | Testing |
-| Laravel Pint | 1 | Code formatter |
+| Laravel | 13 | REST API framework |
+| Laravel Sanctum | 4 | Token-based SPA authentication |
+| MySQL | 8.0 | Relational database |
+| Nginx | latest | Web server (inside container) |
+| Supervisor | latest | Process manager (PHP-FPM + queue) |
+| Laravel Pint | 1 | PHP code formatter |
+| PHPUnit | 12 | Testing framework |
+| Faker | 1.23 | Test data generation |
 
 ### Frontend
-| Technology | Version | Purpose |
+| Tool / Library | Version | Purpose |
 |---|---|---|
-| Next.js | 16 | React framework (SSR/SSG) |
-| React | 19 | UI library |
-| TypeScript | 5 | Type safety |
-| Bootstrap | 5 | CSS framework (from provided design) |
+| Next.js | 16.2.2 | React framework (App Router, SSR) |
+| React | 19.2.4 | UI library |
+| TypeScript | 5 | Type-safe JavaScript |
+| Tailwind CSS | 4 | Utility-first CSS framework |
+| Axios | 1.14 | HTTP client for API requests |
+| Bootstrap | 5 | UI component styling |
+
+### Infrastructure
+| Tool | Purpose |
+|---|---|
+| Docker | Containerization |
+| Docker Compose | Multi-service orchestration |
+| Node 20 Alpine | Frontend container base image |
+| PHP 8.3-FPM Alpine | Backend container base image |
 
 ---
 
 ## Features
 
-### Authentication
-- **Registration** — first name, last name, email, password with validation
-- **Login** — email and password with secure session handling
-- **Protected routes** — Feed page is inaccessible without authentication
-- **Logout** — session invalidation
-
-### Feed
-- View all public posts from all users, ordered by most recent
-- Private posts visible only to their author
-- Create new posts with optional image attachment
-- Real-time-style updates without full page reload
-
-### Posts
-- **Create** — text content + optional image, set visibility (public/private)
-- **Like / Unlike** — toggle like on any post; shows who liked it
-- **Delete** — authors can delete their own posts
-
-### Comments
-- Add comments to any post
-- **Like / Unlike** comments
-- View all commenters
-
-### Replies
-- Reply to any comment
-- **Like / Unlike** replies
-- Nested thread display
+- **Authentication** — Register, login, logout using token-based auth (Laravel Sanctum)
+- **Posts** — Create posts with optional image upload, set visibility (public/private), delete own posts
+- **Feed** — Paginated public feed showing all public posts, most recent first
+- **Likes** — Like/unlike posts, comments, and replies; view who liked an item
+- **Comments** — Add comments to posts, delete own comments
+- **Replies** — Reply to comments with nested threading
+- **Stories Row** — Horizontal stories section in the feed
+- **Protected Routes** — Middleware-enforced authentication for feed access
 
 ---
 
-## Architecture & Design Decisions
+## Project Screenshots
 
-### API-First Backend
-The Laravel backend exposes a versioned REST API (`/api/v1/...`). This decouples the frontend completely and makes it easy to add mobile clients in the future.
+### Login Page
+![Login Page](screenshots/login-page.png)
 
-### Authentication Strategy
-Laravel Sanctum is used for token-based SPA authentication. Tokens are stored in `httpOnly` cookies, preventing XSS access from JavaScript while still supporting CSRF protection.
+### Registration Page
+![Register Page](screenshots/register-page.png)
 
-### Database Design for Scale
-The schema is designed with millions of posts/reads in mind:
+### Feed Page
+![Feed Page](screenshots/feed.png)
 
-- **Polymorphic likes** — a single `likes` table handles post likes, comment likes, and reply likes using `likeable_type` / `likeable_id`. This avoids three separate tables and simplifies queries.
-- **Indexed foreign keys** — all foreign keys and frequently filtered columns (e.g. `user_id`, `post_id`, `visibility`, `created_at`) are indexed.
-- **Soft deletes** — posts and comments use `SoftDeletes` so data is recoverable and historical like counts remain valid.
-- **Pagination** — feed endpoint uses cursor-based pagination rather than offset pagination for stable performance at large offsets.
+---
 
-### Visibility Control
-Posts have a `visibility` enum (`public` | `private`). The feed query filters private posts at the database level so they never reach unauthorized users:
+## Architecture Decisions
 
-```sql
-WHERE visibility = 'public' OR user_id = :authenticated_user_id
-```
+### API-First / Decoupled Architecture
+The backend exposes a versioned REST API (`/api/v1/`) and the frontend is a completely separate Next.js application. This separation makes it straightforward to add mobile clients or other consumers in the future without changing the backend.
 
-### Image Uploads
-Post images are stored on the `local` filesystem disk (configurable to S3 via `FILESYSTEM_DISK=s3`). URLs are generated via Laravel's `Storage::url()` helper.
+### Laravel Sanctum for Authentication
+Sanctum provides lightweight SPA token authentication. Tokens are issued on login and sent with every subsequent request via the `Authorization: Bearer` header. This approach is stateless and works well across separate origins.
 
-### Frontend Routing
-Next.js App Router is used with the following route structure:
+### Polymorphic Likes
+A single `likes` table with `likeable_type` and `likeable_id` columns handles likes for posts, comments, and replies. This avoids three separate like tables and makes the toggle logic reusable in a single `LikeService`.
 
-```
-/              → redirects to /login or /feed
-/login         → Login page (public)
-/register      → Registration page (public)
-/feed          → Social feed (protected)
-```
+### Cursor-Based Pagination
+The feed uses cursor-based pagination instead of offset-based (`page=N`). This prevents duplicate or missing posts when new content is added while scrolling, which is a common issue with offset pagination on real-time feeds.
 
-Route protection is handled by a Next.js middleware that checks for a valid auth token before rendering protected pages.
+### Service Layer
+Business logic (post creation, like toggling, etc.) is extracted into service classes under `app/Services/Api/V1/`. Controllers stay thin — they validate input, call a service, and return a response. This makes the logic testable in isolation.
+
+### Soft Deletes
+Posts and comments use Laravel's soft deletes (`deleted_at` column). Deleted records are hidden from queries but remain in the database, enabling data recovery and preserving referential integrity for likes and replies.
+
+### Docker Multi-Stage Builds
+Both backend and frontend Dockerfiles use multi-stage builds. The frontend produces a minimal Next.js standalone output. The backend uses PHP-FPM + Nginx + Supervisor in a single Alpine container managed by a custom entrypoint script, keeping the deployment footprint small.
 
 ---
 
@@ -134,136 +114,140 @@ Route protection is handled by a Next.js middleware that checks for a valid auth
 
 ```
 social_media_site/
-├── backend/                    # Laravel 13 API
+├── backend/                        # Laravel 13 REST API
 │   ├── app/
 │   │   ├── Http/
-│   │   │   ├── Controllers/
-│   │   │   │   ├── Auth/
-│   │   │   │   │   ├── LoginController.php
-│   │   │   │   │   └── RegisterController.php
-│   │   │   │   ├── PostController.php
-│   │   │   │   ├── CommentController.php
-│   │   │   │   ├── ReplyController.php
-│   │   │   │   └── LikeController.php
-│   │   │   └── Requests/
-│   │   │       ├── Auth/
-│   │   │       │   ├── LoginRequest.php
-│   │   │       │   └── RegisterRequest.php
-│   │   │       └── StorePostRequest.php
-│   │   ├── Models/
-│   │   │   ├── User.php
-│   │   │   ├── Post.php
-│   │   │   ├── Comment.php
-│   │   │   ├── Reply.php
-│   │   │   └── Like.php
-│   │   └── Policies/
-│   │       └── PostPolicy.php
+│   │   │   ├── Controllers/Api/V1/ # Auth, Post, Comment, Reply, Like controllers
+│   │   │   └── Requests/Api/V1/    # Form request validation classes
+│   │   ├── Models/                 # User, Post, Comment, Reply, Like
+│   │   ├── Policies/               # PostPolicy (authorization)
+│   │   └── Services/Api/V1/        # PostService, CommentService, LikeService
 │   ├── database/
-│   │   ├── migrations/
-│   │   ├── factories/
-│   │   └── seeders/
-│   ├── routes/
-│   │   ├── api.php             # All API routes
-│   │   └── web.php
-│   └── tests/
-│       └── Feature/
+│   │   ├── migrations/             # All table migrations
+│   │   ├── factories/              # Model factories for seeding
+│   │   └── seeders/                # DatabaseSeeder, UserSeeder, PostSeeder
+│   ├── routes/api.php              # All API routes (versioned under /api/v1/)
+│   └── Dockerfile
 │
-├── frontend/                   # Next.js 16 App
+├── frontend/                       # Next.js 16 Application
 │   ├── src/
-│   │   └── app/
-│   │       ├── (auth)/
-│   │       │   ├── login/
-│   │       │   │   └── page.tsx
-│   │       │   └── register/
-│   │       │       └── page.tsx
-│   │       ├── feed/
-│   │       │   └── page.tsx
-│   │       ├── layout.tsx
-│   │       └── middleware.ts   # Route protection
-│   └── public/
+│   │   ├── app/
+│   │   │   ├── (auth)/login/       # Login page
+│   │   │   ├── (auth)/register/    # Registration page
+│   │   │   └── feed/               # Main feed + all feed components
+│   │   ├── lib/api.ts              # Axios API client wrapper
+│   │   ├── types/index.ts          # TypeScript type definitions
+│   │   └── components/             # Shared components (Avatar, etc.)
+│   └── Dockerfile
 │
-└── task/                       # Original design files
-    ├── login.html
-    ├── registration.html
-    ├── feed.html
-    └── assets/
+├── screenshots/                    # Project screenshots
+├── docker-compose.yml              # Orchestrates mysql, backend, frontend
+└── README.md
 ```
 
 ---
 
-## Getting Started
+## How to Run the Project
 
 ### Prerequisites
 
-- PHP 8.3+
-- Composer 2+
-- Node.js 20+
-- npm 10+
-- MySQL 8+
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed on your machine.
 
 ---
 
-### Backend Setup
+### Option 1: Run with Docker (Recommended)
+
+This is the easiest way to run the full stack with a single command.
+
+**1. Clone the repository**
+```bash
+git clone <repository-url>
+cd social_media_site
+```
+
+**2. Start all services**
+```bash
+docker compose up --build
+```
+
+This will:
+- Start a MySQL 8.0 database on port `3306`
+- Build and start the Laravel backend on port `8000`
+- Build and start the Next.js frontend on port `3000`
+- Run database migrations and seeders automatically on first start
+
+**3. Open the app**
+
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:8000/api/v1 |
+
+**4. Stop the services**
+```bash
+docker compose down
+```
+
+To also remove database volumes (fresh start):
+```bash
+docker compose down -v
+```
+
+---
+
+### Option 2: Run Locally (Without Docker)
+
+#### Backend Setup
+
+**Requirements:** PHP 8.3, Composer, MySQL 8.0
 
 ```bash
 cd backend
 
-# 1. Install PHP dependencies
+# Install PHP dependencies
 composer install
 
-# 2. Copy environment file
+# Copy environment file and configure
 cp .env.example .env
 
-# 3. Generate application key
+# Edit .env — set your DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+# Also set APP_URL=http://localhost:8000
+
+# Generate app key
 php artisan key:generate
 
-# 4. Configure your database in .env
-#    DB_DATABASE, DB_USERNAME, DB_PASSWORD
+# Run migrations and seed the database
+php artisan migrate --seed
 
-# 5. Run migrations
-php artisan migrate
+# Create storage symlink (for uploaded images)
+php artisan storage:link
 
-# 6. (Optional) Seed with sample data
-php artisan db:seed
-
-# 7. Start the development server
-php artisan serve
+# Start the development server
+php artisan serve --port=8000
 ```
 
-The API will be available at `http://localhost:8000`.
+#### Frontend Setup
 
----
-
-### Frontend Setup
+**Requirements:** Node.js 20+
 
 ```bash
 cd frontend
 
-# 1. Install dependencies
+# Install dependencies
 npm install
 
-# 2. Copy environment file
+# Copy environment file
 cp .env.local.example .env.local
 
-# 3. Set the API base URL
-#    NEXT_PUBLIC_API_URL=http://localhost:8000
+# Edit .env.local:
+# NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+# NEXT_PUBLIC_STORAGE_URL=http://localhost:8000/storage
 
-# 4. Start the development server
+# Start the development server
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:3000`.
-
----
-
-### Run Both Together (from backend/)
-
-```bash
-cd backend
-composer run dev
-```
-
-This starts the Laravel server, queue worker, log watcher, and Vite dev server concurrently.
+The frontend will be available at http://localhost:3000.
 
 ---
 
@@ -273,22 +257,23 @@ This starts the Laravel server, queue worker, log watcher, and Vite dev server c
 
 | Variable | Default | Description |
 |---|---|---|
-| `APP_URL` | `http://localhost:8000` | Backend URL |
-| `DB_CONNECTION` | `mysql` | Database driver |
-| `DB_HOST` | `127.0.0.1` | Database host |
-| `DB_PORT` | `3306` | Database port |
-| `DB_DATABASE` | `backend` | Database name |
-| `DB_USERNAME` | `root` | Database user |
-| `DB_PASSWORD` | _(empty)_ | Database password |
-| `SESSION_DRIVER` | `database` | Session storage |
-| `FILESYSTEM_DISK` | `local` | File storage (use `s3` for production) |
-| `SANCTUM_STATEFUL_DOMAINS` | `localhost:3000` | Allowed SPA domains |
+| `APP_NAME` | Laravel | Application name |
+| `APP_ENV` | local | Environment (`local`, `production`) |
+| `APP_URL` | http://localhost | Backend base URL |
+| `DB_HOST` | 127.0.0.1 | MySQL host |
+| `DB_PORT` | 3306 | MySQL port |
+| `DB_DATABASE` | social_media | Database name |
+| `DB_USERNAME` | laravel | Database user |
+| `DB_PASSWORD` | secret | Database password |
+| `FILESYSTEM_DISK` | local | Storage disk (`local` or `s3`) |
+| `BCRYPT_ROUNDS` | 12 | Password hash cost factor |
 
 ### Frontend (`frontend/.env.local`)
 
-| Variable | Description |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | Laravel backend base URL |
+| Variable | Example | Description |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | http://localhost:8000/api/v1 | Backend API base URL |
+| `NEXT_PUBLIC_STORAGE_URL` | http://localhost:8000/storage | Storage URL for uploaded images |
 
 ---
 
@@ -296,136 +281,17 @@ This starts the Laravel server, queue worker, log watcher, and Vite dev server c
 
 All API routes are versioned under `/api/v1/`.
 
-### Authentication
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/v1/register` | Register a new user |
-| `POST` | `/api/v1/login` | Log in and receive token |
-| `POST` | `/api/v1/logout` | Invalidate current token |
-| `GET` | `/api/v1/user` | Get authenticated user |
-
-### Posts
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/v1/posts` | Get feed (paginated, auth required) |
-| `POST` | `/api/v1/posts` | Create a new post |
-| `DELETE` | `/api/v1/posts/{post}` | Delete own post |
-
-### Comments
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/v1/posts/{post}/comments` | List comments on a post |
-| `POST` | `/api/v1/posts/{post}/comments` | Add a comment |
-
-### Replies
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/v1/comments/{comment}/replies` | Add a reply |
-
-### Likes
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/v1/posts/{post}/like` | Toggle like on post |
-| `POST` | `/api/v1/comments/{comment}/like` | Toggle like on comment |
-| `POST` | `/api/v1/replies/{reply}/like` | Toggle like on reply |
-
----
-
-## Database Schema
-
-### `users`
-| Column | Type | Notes |
-|---|---|---|
-| `id` | bigint PK | |
-| `first_name` | varchar | |
-| `last_name` | varchar | |
-| `email` | varchar unique | |
-| `password` | varchar | bcrypt (12 rounds) |
-| `avatar` | varchar nullable | Profile picture path |
-| `email_verified_at` | timestamp | |
-| `timestamps` | | |
-
-### `posts`
-| Column | Type | Notes |
-|---|---|---|
-| `id` | bigint PK | |
-| `user_id` | FK → users | Indexed |
-| `content` | text | |
-| `image` | varchar nullable | Storage path |
-| `visibility` | enum(`public`,`private`) | Default: `public` |
-| `deleted_at` | timestamp | Soft delete |
-| `timestamps` | | |
-
-### `comments`
-| Column | Type | Notes |
-|---|---|---|
-| `id` | bigint PK | |
-| `post_id` | FK → posts | Indexed |
-| `user_id` | FK → users | Indexed |
-| `content` | text | |
-| `deleted_at` | timestamp | Soft delete |
-| `timestamps` | | |
-
-### `replies`
-| Column | Type | Notes |
-|---|---|---|
-| `id` | bigint PK | |
-| `comment_id` | FK → comments | Indexed |
-| `user_id` | FK → users | Indexed |
-| `content` | text | |
-| `timestamps` | | |
-
-### `likes` (polymorphic)
-| Column | Type | Notes |
-|---|---|---|
-| `id` | bigint PK | |
-| `user_id` | FK → users | Indexed |
-| `likeable_id` | bigint | Polymorphic target ID |
-| `likeable_type` | varchar | `Post`, `Comment`, or `Reply` |
-| `timestamps` | | Unique on (user_id, likeable_id, likeable_type) |
-
----
-
-## Security Considerations
-
-- **Password hashing** — bcrypt with 12 rounds via Laravel's `Hash::make()`
-- **CSRF protection** — Laravel Sanctum's cookie-based SPA auth includes CSRF tokens automatically
-- **SQL injection** — All queries use Eloquent ORM / prepared statements; no raw user input in queries
-- **XSS prevention** — React escapes all rendered values by default; Blade templates use `{{ }}` escaping
-- **Authorization** — Laravel Policies (`PostPolicy`) enforce that users can only modify their own content
-- **Input validation** — All request data validated via Laravel Form Requests before any business logic
-- **Visibility enforcement** — Private posts filtered at query level, never sent to unauthorized clients
-- **File upload safety** — Uploaded images validated for MIME type and size; stored outside the web root
-
----
-
-## Performance & Scalability
-
-- **Cursor-based pagination** on the feed — consistent performance regardless of dataset size
-- **Polymorphic likes table** — single indexed table instead of three, reducing JOIN complexity
-- **Eager loading** — Eloquent relationships (`with()`) prevent N+1 query issues
-- **Database indexes** on all foreign keys and filter columns (`visibility`, `created_at`, `user_id`)
-- **Storage abstraction** — switching from local disk to S3 requires only a config change (`FILESYSTEM_DISK=s3`), no code changes
-- **Queue-ready** — Laravel queue worker configured for future async tasks (notifications, email, etc.)
-
----
-
-## Running Tests
-
-```bash
-cd backend
-
-# Run all tests
-php artisan test --compact
-
-# Run a specific test file
-php artisan test --compact tests/Feature/PostTest.php
-
-# Run a specific test
-php artisan test --compact --filter=test_user_can_create_post
-```
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/register` | No | Register a new user |
+| POST | `/api/v1/login` | No | Login and receive token |
+| POST | `/api/v1/logout` | Yes | Logout and invalidate token |
+| GET | `/api/v1/user` | Yes | Get authenticated user info |
+| GET | `/api/v1/posts` | Yes | List all public posts (paginated) |
+| POST | `/api/v1/posts` | Yes | Create a new post |
+| DELETE | `/api/v1/posts/{id}` | Yes | Delete own post |
+| POST | `/api/v1/posts/{id}/comments` | Yes | Add a comment to a post |
+| DELETE | `/api/v1/comments/{id}` | Yes | Delete own comment |
+| POST | `/api/v1/comments/{id}/replies` | Yes | Reply to a comment |
+| POST | `/api/v1/likes` | Yes | Toggle like on post/comment/reply |
+| GET | `/api/v1/likes` | Yes | Get list of users who liked an item |
