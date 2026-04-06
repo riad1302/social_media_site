@@ -170,13 +170,28 @@ cd social_media_site
 docker compose up --build
 ```
 
-This will:
-- Start a MySQL 8.0 database on port `3306`
-- Build and start the Laravel backend on port `8000`
-- Build and start the Next.js frontend on port `3000`
-- Run database migrations and seeders automatically on first start
+This will start MySQL, the Laravel backend (port `8000`), and the Next.js frontend (port `3000`).
 
-**3. Open the app**
+**3. Install PHP dependencies and seed the database**
+
+After the containers are running, open a new terminal and run:
+
+```bash
+# Install PHP dependencies
+docker compose exec backend composer install
+
+# Seed the database with demo data
+docker compose exec backend php artisan db:seed
+```
+
+**4. Demo login credentials**
+
+| Field | Value |
+|---|---|
+| Email | `demo@example.com` |
+| Password | `password` |
+
+**5. Open the app**
 
 | Service | URL |
 |---|---|
